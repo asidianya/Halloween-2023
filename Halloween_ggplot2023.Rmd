@@ -1,0 +1,242 @@
+---
+title: "Halloween_ggplot2023"
+author: "Nnenna Asidianya"
+date: '2023-10-29'
+output: html_document
+---
+
+```{r setup, warning=FALSE, message=FALSE, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Set up the packages we need
+
+# Load the data
+
+We're are loading the data from 2014 Halloween Candy data set. The question is what the most popular Halloween candy? They matched up halloween sized candy in pairs (online) and then asked participants to click on the candy they would rather receive. 
+What’s the best (or at least the most popular) Halloween candy? That was the question this dataset was collected to answer. Data was collected by creating a website where participants were shown presenting two fun-sized candies and asked to click on the one they would prefer to receive. In total, more than 269 thousand votes were collected from 8,371 different IP addresses.dataset.
+
+
+You can see the information about this dataset here: https://www.kaggle.com/datasets/fivethirtyeight/the-ultimate-halloween-candy-power-ranking/ 
+
+
+```{r}
+#install.packages("tidyverse")
+library(tidyverse)
+
+
+candy <- readr::read_csv("candy_data.csv")
+attach(candy)
+glimpse(candy)
+```
+
+#Demonstration
+
+#This is adapted from Hadley Wickham's R 4 Data Science and can be found here: https://github.com/hadley/r4ds/blob/master/visualize.Rmd
+
+
+```{r}
+view(candy)
+```
+
+
+Consider the two variables we are working with from above: 
+
+1. `winpercent`, The overall win percentage according to 269,000 matchups.
+
+2. `pricepercent`,  The unit price percentile compared to the rest of the set.
+
+Question 1: Which candy had the lowest win percent?
+
+Question 2: Which candy had the highest win percent?
+
+### Creating a ggplot
+
+Is there an association between price percent and win percent?
+
+The first argument of `ggplot()` is the dataset to use in the graph. All we have created is a coordinate system. Without specifying another layer to the plot, we essentially have an empty plot. 
+
+
+```{r}
+ggplot(candy, aes(x=pricepercent, y=winpercent)) 
+
+```
+
+```{r}
+
+ggplot(candy, aes(x=pricepercent, y=winpercent)) +
+  geom_point() + geom_smooth(method="lm")
+  ggtitle("Ultimate Hallowe'en Candy Power Ranking")
+```
+
+
+#Aesthetics
+
+
+Exercise 4. What happens if you  want to make a plot of  `winprice>50`  vs `percentprice`? 
+
+
+#Allow us to take a closer look at potentially missing information, such as outliers. 
+```{r}
+ggplot(candy, aes(x=pricepercent, y=winpercent))+
+  geom_point() + 
+    geom_point(data = filter(candy, pricepercent >=0, winpercent> 50), colour = "red", size = 2.2) + ggtitle("Tidy Tuesday Horror Movie Ratings vs Budget") +
+  ylab("Budget") +
+  xlab("Movie Rating")
+```
+
+ANS: 
+
+
+# Data transformation 
+
+Notice that the data set contains the following three variables:
+
+* chocolate: Does it contain chocolate?
+* fruity: Is it fruit flavored?
+* caramel: Is there caramel in the candy?
+
+The data set is structured in a way where the content of the candy is presented in wide format. This means that if I wanted to compare and contrast how the candy content is related to the winpercent rating, I need to create a variable that has levels: chocolate, fruity and caramel. 
+
+For each of the candy types, we have whether or not it is chocolate, fruity, caramel, or none. Let's see if we can determine if there is a difference in the median winpercent for each content. 
+
+I am going to separate this into four categories: chocolate, fruity, caramel, combination (at least two content present), none. 
+
+```{r}
+#this is going to be ugly 
+candy2<-candy %>% mutate(candy_content = ifelse(chocolate==1 & fruity==1 | chocolate==1 & caramel==1 | caramel==1 & fruity==1, "combination", ifelse(chocolate==1 & fruity==0|chocolate==1&caramel==0, "chocolate",ifelse(fruity==1&chocolate==0|fruity==1&caramel==0, "fruity", ifelse(caramel==1&chocolate==0|caramel==1&fruity==0, "caramel", "none")     )      )                    ))
+```
+
+Notice that there are five levels, and I've created four interations of the ifelse() statement because the last one is fixed based on the previous four.
+
+```{r}
+view(candy2)
+```
+
+
+EX. Let's look at the boxplot of vrelease month' versus 'country':
+
+```{r}
+ggplot(data=candy2, aes(x=candy_content, y=winpercent, fill=candy_content)) + geom_boxplot()
+
+```
+
+Let's play with the aesthetics,
+
+```{r}
+ggplot(data=candy2, aes(x=candy_content, y=winpercent, fill=candy_content)) + geom_boxplot(color="red", fill="orange")
+```
+
+
+```{r}
+ggplot(data=candy2, aes(x=candy_content, y=winpercent, fill=candy_content)) + geom_boxplot()+ scale_fill_manual(values=c("#999999", 
+                               "orange", 
+                               "yellow",
+                               "red",
+                               "black"))
+ 
+```
+Appears like chocolate and combination are likely to have the highest win percent (although combination is vague).
+
+## Facets
+One way to add additional variables is with aesthetics. Another way, particularly useful for categorical variables, is to split your plot into facets, subplots that each display one subset of the data. 
+To facet your plot by a single variable, use `facet_wrap()`. The first argument of `facet_wrap()` should be a formula, which is the name of your data structure that you wish to subset on. Thus variable that you pass to `facet_wrap()` should be discrete. 
+
+
+EX: We have not examined the 'sugar percent variable':  percentile of sugar it falls under within the data set.
+
+
+```{r}
+sugar<-candy2 %>% mutate(sugar=ifelse(sugarpercent >0.5, "sugar high", "sugar low"))
+
+
+p<-ggplot(data=sugar, aes(x=candy_content, y=winpercent, fill=candy_content)) + geom_boxplot()+ scale_fill_manual(values=c("#999999", 
+                               "orange", 
+                               "yellow",
+                               "red",
+                               "black"))
+
+p+facet_wrap(.~sugar)+
+  theme(axis.text.x = element_text(angle = -45, vjust = 0))
+  
+```
+#challenge 
+Code adapted from https://twitter.com/committedtotape/status/1187109093003223040
+To complete the graphic you need to download [Ghostscript and Extrafont](https://cran.r-project.org/web/packages/extrafont/README.html)
+```{r, message=FALSE}
+#install.packages("extrafont")
+library(extrafont)
+defaultW <- getOption("warn") 
+options(warn = -1) 
+#extrafont::loadfonts(device="win")
+#extrafont::fonttable()
+#movie count by each month/year
+#warning regarding some dates not parsed as they only contain the year of release, not the full date
+month_year_count <- horror_movies %>% 
+  filter(!is.na(release_date)) %>% 
+  mutate(month_year = floor_date(dmy(release_date), "months")) %>% 
+  count(month_year)%>% 
+  mutate(n=n*-1)%>% 
+  filter(!is.na(month_year))
+ggplot(month_year_count, aes(x=month_year, y=n))+
+#round segment lines look more like dripping blood then squared columns
+geom_segment(aes(xend=month_year, yend=0), colour="red", lineend = "round", size=4) + 
+#add some extra drip to the october peaks
+geom_point(data=filter(month_year_count, month(month_year)==10), 
+           aes(x=month_year, y=n), 
+           colour="dark red", fill="red", size=6, shape=21, stroke=2)+
+geom_hline(yintercept=0, colour="red", size=5)+
+#annotations
+geom_text(aes(x=as.Date("2012-12-01"), y=-110,
+              label="What's your\nfavourite\nscary movie\nmonth?"), 
+              family="YouMurderer BB", 
+          colour="red",
+          size=14)+
+  geom_text(aes(x=as.Date("2015-10-01"), y=-130,
+                label="October sees the highest number of horror films released,\nwhich (ironically) is not shocking at all"),
+            family="Andale Mono", 
+            colour="white",
+            size=3,
+            hjust=0.5) + 
+  geom_text(aes(x=as.Date("2013-12-01"), y=-15,
+            label="December is not a good month for catching up a horror movie"), 
+            family="Andale Mono", 
+            colour="white",
+            size=3,
+            hjust=0)+ 
+  #some extra drip to link october peaks to annotation
+  
+  geom_segment(data=filter(month_year_count, month(month_year)==10,year(month_year)%in% c(2014, 2015, 2016)),
+               aes(x=month_year, xend=month_year,
+                   y=-125, yend=n-5),
+               colour="red",size=1.5, lineend="round", linetype=3)+
+  #axis labels
+  scale_x_date(date_breaks ="years", date_labels="%Y", position="top") +
+  scale_y_continuous(breaks=seq(0,-150,-25),labels=seq(0,150, 25), position="right")+ labs(caption="Graphic: @committedtotape\nSource:IMDb",
+                                                                                           x="Number of Horror Movie Releases by month", y="")+
+theme_void()+
+  theme(plot.background = element_rect(fill="gray20", colour="gray20"),
+        axis.title = element_text(colour ="white", family="YouMurderer BB", size=14), 
+        axis.text.x.top = element_text(colour="white", angle=45, family="YouMurderer BB", hjust=1, size=14),
+        axis.text.y.right=element_text(colour="white", family="YouMurderer BB", size=14),
+        plot.caption = element_text(color="red", family="Courier New", size=10),
+        plot.margin = margin(10,10,10,10))
+ggsave("horror movie releases.png", width=8, height=8)
+```
+
+
+#had to put an alias for package to run the lubridate. 
+
+##Resources 
+
+We have attached a link to the free online version of the ggplot2 text book here:
+
+1. [ggplot2 handbook](https://ggplot2-book.org/introduction.html)
+ 
+We have attached slides provided by Liza about working with colour palettes in R: 
+
+2. [Colour palattes](https://www.dataembassy.co.nz/Liza-colours-in-R#1)
+
+
+
+    
